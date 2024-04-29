@@ -2,88 +2,53 @@
 
 pragma solidity >=0.7.0 <0.9.0;
 
-interface IERC20Token {
-  function transfer(address, uint256) external returns (bool);
-  function approve(address, uint256) external returns (bool);
-  function transferFrom(address, address, uint256) external returns (bool);
-  function totalSupply() external view returns (uint256);
-  function balanceOf(address) external view returns (uint256);
-  function allowance(address, address) external view returns (uint256);
-
-  event Transfer(address indexed from, address indexed to, uint256 value);
-  event Approval(address indexed owner, address indexed spender, uint256 value);
-}
-
-contract Marketplace {
-
-    uint internal productsLength = 0;
-    address internal cUsdTokenAddress = 0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1;
-
-    struct Product {
-        address payable owner;
+contract Voting {
+    struct Candidate {
         string name;
         string image;
-        string description;
-        string location;
-        uint price;
-        uint sold;
+        uint votes;
     }
 
-    mapping (uint => Product) internal products;
+    Candidate[] public candidates;
+    mapping(address => bool) public hasVoted;
 
-    function writeProduct(
-        string memory _name,
-        string memory _image,
-        string memory _description, 
-        string memory _location, 
-        uint _price
-    ) public {
-        uint _sold = 0;
-        products[productsLength] = Product(
-            payable(msg.sender),
-            _name,
-            _image,
-            _description,
-            _location,
-            _price,
-            _sold
-        );
-        productsLength++;
+    event CandidateAdded(string name, string image);
+    event Voted(uint candidateId);
+
+    constructor() {
+        // Initialize candidates array
+        candidates.push();
     }
 
-    function readProduct(uint _index) public view returns (
-        address payable,
-        string memory, 
-        string memory, 
-        string memory, 
-        string memory, 
-        uint, 
-        uint
-    ) {
-        return (
-            products[_index].owner,
-            products[_index].name, 
-            products[_index].image, 
-            products[_index].description, 
-            products[_index].location, 
-            products[_index].price,
-            products[_index].sold
-        );
+    function addCandidate(string memory _name, string memory _image) public {
+        candidates.push(Candidate(_name, _image, 0));
+        emit CandidateAdded(_name, _image);
     }
-    
-    function buyProduct(uint _index) public payable  {
-        require(
-          IERC20Token(cUsdTokenAddress).transferFrom(
-            msg.sender,
-            products[_index].owner,
-            products[_index].price
-          ),
-          "Transfer failed."
-        );
-        products[_index].sold++;
+
+    function vote(uint _candidateId) public {
+        require(_candidateId < candidates.length, "Invalid candidate ID");
+        require(!hasVoted[msg.sender], "You have already voted");
+
+        candidates[_candidateId].votes++;
+        hasVoted[msg.sender] = true;
+
+        emit Voted(_candidateId);
     }
-    
-    function getProductsLength() public view returns (uint) {
-        return (productsLength);
+
+    function getCandidate(
+        uint _candidateId
+    )
+        public
+        view
+        returns (string memory name, string memory image, uint votes)
+    {
+        require(_candidateId < candidates.length, "Invalid candidate ID");
+
+        Candidate memory candidate = candidates[_candidateId];
+        return (candidate.name, candidate.image, candidate.votes);
+    }
+
+    function getCandidatesCount() public view returns (uint) {
+        return candidates.length;
     }
 }
